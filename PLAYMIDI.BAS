@@ -106,6 +106,7 @@ END TYPE
 
 TYPE MIDIStr
  BendSense AS DOUBLE
+ FileH AS INTEGER
  Format AS INTEGER
  InvertedDeltaTicks AS DOUBLE
  Tempo AS DOUBLE
@@ -134,66 +135,66 @@ TYPE TrackStr
  Status AS INTEGER
 END TYPE
 
-DECLARE FUNCTION AllocateChannel (Instrument)
-DECLARE FUNCTION GetHertz# (Note, Bend AS DOUBLE)
-DECLARE FUNCTION GetInvertedDeltaTicks (TicksPerQuarterNote%) AS DOUBLE
-DECLARE FUNCTION GetOctave (Hertz AS DOUBLE)
-DECLARE FUNCTION GetShortestDelay& (TrackCount AS LONG)
-DECLARE FUNCTION IsRunningStatus (Byte)
-DECLARE FUNCTION ParseBEDWord& (Buffer AS STRING)
-DECLARE FUNCTION ParseBEWord (Buffer AS STRING)
-DECLARE FUNCTION ReadVariableLengthInteger& ()
-DECLARE FUNCTION RemoveSpecialCharacters$ (Text AS STRING)
-DECLARE FUNCTION ScheduleEventsAfterDelay# (Delay AS LONG, MIDI AS MIDIStr, Status AS StatusStr)
-DECLARE SUB ChangePanning (Channel, DataV)
-DECLARE SUB ControllerChange (Channel, MIDI AS MIDIStr)
-DECLARE SUB DeallocateActiveNote (Channel, Note)
-DECLARE SUB Display (Row, Column, ColorV, Text AS STRING)
+DECLARE FUNCTION AllocateChannel (Instrument AS INTEGER) AS INTEGER
+DECLARE FUNCTION GetHertz (Note AS INTEGER, Bend AS DOUBLE) AS DOUBLE
+DECLARE FUNCTION GetInvertedDeltaTicks (TicksPerQuarterNote) AS DOUBLE
+DECLARE FUNCTION GetOctave (Hertz AS DOUBLE) AS INTEGER
+DECLARE FUNCTION GetShortestDelay (TrackCount AS LONG) AS LONG
+DECLARE FUNCTION IsRunningStatus (Byte AS INTEGER) AS INTEGER
+DECLARE FUNCTION ParseBEDWord (Buffer AS STRING) AS LONG
+DECLARE FUNCTION ParseBEWord (Buffer AS STRING) AS INTEGER
+DECLARE FUNCTION ReadVariableLengthInteger (MIDI AS MIDIStr) AS LONG
+DECLARE FUNCTION RemoveSpecialCharacters (Text AS STRING) AS STRING
+DECLARE FUNCTION ScheduleEventsAfterDelay (Delay AS LONG, MIDI AS MIDIStr, Status AS StatusStr) AS DOUBLE
+DECLARE SUB ChangePanning (Channel AS INTEGER, DataV AS INTEGER)
+DECLARE SUB ControllerChange (Channel AS INTEGER, MIDI AS MIDIStr)
+DECLARE SUB DeallocateActiveNote (Channel AS INTEGER, Note AS INTEGER)
+DECLARE SUB Display (Row AS INTEGER, Column AS INTEGER, ColorV AS INTEGER, Text AS STRING)
 DECLARE SUB DisplayKeys ()
-DECLARE SUB DisplayNote (AllocatedChannel, Note)
+DECLARE SUB DisplayNote (AllocatedChannel AS INTEGER, Note AS INTEGER)
 DECLARE SUB GetInstrumentData ()
-DECLARE SUB HandleSpecialTrackEvent (MIDISpecialEvent, Track, MIDI AS MIDIStr, Status AS StatusStr)
-DECLARE SUB HandleSpecialTrackMetaEvent (Track, MIDI AS MIDIStr, Status AS StatusStr)
-DECLARE SUB HandleTrackEvent (Track, MIDI AS MIDIStr, Status AS StatusStr)
+DECLARE SUB HandleSpecialTrackEvent (MIDISpecialEvent AS INTEGER, Track, MIDI AS MIDIStr, Status AS StatusStr)
+DECLARE SUB HandleSpecialTrackMetaEvent (Track AS INTEGER, MIDI AS MIDIStr, Status AS StatusStr)
+DECLARE SUB HandleTrackEvent (Track AS INTEGER, MIDI AS MIDIStr, Status AS StatusStr)
 DECLARE SUB Initialize (Status AS StatusStr)
 DECLARE SUB Main (MIDI AS MIDIStr, Status AS StatusStr)
-DECLARE SUB NoteOff (Channel)
-DECLARE SUB NoteOn (Channel, Status AS StatusStr)
-DECLARE SUB NoteTouch (Channel)
+DECLARE SUB NoteOff (Channel AS INTEGER, MIDI AS MIDIStr)
+DECLARE SUB NoteOn (Channel AS INTEGER, Status AS StatusStr, MIDI AS MIDIStr)
+DECLARE SUB NoteTouch (Channel AS INTEGER, MIDI AS MIDIStr)
 DECLARE SUB OpenMIDI (FileName AS STRING, MIDI AS MIDIStr)
-DECLARE SUB OPLNoteOff (Channel)
-DECLARE SUB OPLNoteOn (Channel, Hertz AS DOUBLE)
-DECLARE SUB OPLPatch (Channel)
+DECLARE SUB OPLNoteOff (Channel AS INTEGER)
+DECLARE SUB OPLNoteOn (Channel AS INTEGER, Hertz AS DOUBLE)
+DECLARE SUB OPLPatch (Channel AS INTEGER)
 DECLARE SUB OPLReset ()
-DECLARE SUB OPLSetUp (Channel, OPL AS OPLStr)
+DECLARE SUB OPLSetUp (Channel AS INTEGER, OPL AS OPLStr)
 DECLARE SUB OPLSilence ()
-DECLARE SUB OPLTouchReal (Channel, Volume)
+DECLARE SUB OPLTouchReal (Channel AS INTEGER, Volume AS INTEGER)
 DECLARE SUB ProcessTrackEvents (MIDI AS MIDIStr, Status AS StatusStr)
-DECLARE SUB Quit ()
-DECLARE SUB ResetAllControllers (Channel)
+DECLARE SUB Quit (MIDI AS MIDIStr)
+DECLARE SUB ResetAllControllers (Channel AS INTEGER)
 DECLARE SUB ReturnToLoopStart (MIDI AS MIDIStr, Status AS StatusStr)
 DECLARE SUB SaveLoopStart (MIDI AS MIDIStr, Status AS StatusStr)
-DECLARE SUB UpdateAllLiveNotes (Channel, MIDIOperation, Volume)
-DECLARE SUB UpdateNotePan (ActiveChannel, Channel)
-DECLARE SUB UpdateNoteVolume (ActiveChannel, Channel, Volume)
+DECLARE SUB UpdateAllLiveNotes (Channel AS INTEGER, MIDIOperation, Volume AS INTEGER)
+DECLARE SUB UpdateNotePan (ActiveChannel AS INTEGER, Channel AS INTEGER)
+DECLARE SUB UpdateNoteVolume (ActiveChannel AS INTEGER, Channel AS INTEGER, Volume AS INTEGER)
 
 DIM MIDI AS MIDIStr
 DIM Status AS StatusStr
 
 DIM SHARED ActiveNote(0 TO 15, 0 TO 127) AS ActiveNoteStr
-DIM SHARED ActiveNoteCount(0 TO 15)
-DIM SHARED ActiveNoteList(0 TO 15, 0 TO 99)
+DIM SHARED ActiveNoteCount(0 TO 15) AS INTEGER
+DIM SHARED ActiveNoteList(0 TO 15, 0 TO 99) AS INTEGER
 DIM SHARED Channels(0 TO 17) AS ChannelStr
 DIM SHARED ChannelInstruments(0 TO 17) AS ChannelInstrumentStr
 DIM SHARED ChannelSettings(0 TO 15) AS ChannelSettingsStr
-DIM SHARED Instruments(0 TO 180, 0 TO 6)
+DIM SHARED Instruments(0 TO 180, 0 TO 6) AS INTEGER
 DIM SHARED Loops(0 TO 0) AS TrackStr
 DIM SHARED LoopsBackup(0 TO 0) AS TrackStr
 DIM SHARED Tracks(0 TO 0) AS TrackStr
 
  Initialize Status
  CALL Main(MIDI, Status)
- Quit
+ Quit MIDI
  END
 
 PlayerLoop:
@@ -401,9 +402,9 @@ DATA  &H201,   &H4F, &HF8FA, &HB58D,    &H0,   &H37,   &H30: 'GP86
 DATA    &H0,    &H0, &HF6F6,  &H60C,    &H0,   &H34,   &H35: 'GP87
 
 REM $STATIC
-FUNCTION AllocateChannel (Instrument)
-DIM AllocatedChannel
-DIM CandidateChannel
+FUNCTION AllocateChannel (Instrument AS INTEGER) AS INTEGER
+DIM AllocatedChannel AS INTEGER
+DIM CandidateChannel AS INTEGER
 DIM HighestScore AS DOUBLE
 DIM Score AS DOUBLE
 
@@ -431,8 +432,8 @@ DIM Score AS DOUBLE
  AllocateChannel = AllocatedChannel
 END FUNCTION
 
-SUB ChangePanning (Channel, DataV)
-DIM Panning
+SUB ChangePanning (Channel AS INTEGER, DataV AS INTEGER)
+DIM Panning AS INTEGER
 
  Panning = NULL
  IF DataV < &H30 THEN
@@ -444,12 +445,12 @@ DIM Panning
  ChannelSettings(Channel).Panning = Panning
 END SUB
 
-SUB ControllerChange (Channel, MIDI AS MIDIStr)
-DIM Controller
-DIM DataV
+SUB ControllerChange (Channel AS INTEGER, MIDI AS MIDIStr)
+DIM Controller AS INTEGER
+DIM DataV AS INTEGER
 
- Controller = ASC(INPUT$(&H1, 1))
- DataV = ASC(INPUT$(&H1, 1))
+ Controller = ASC(INPUT$(&H1, MIDI.FileH))
+ DataV = ASC(INPUT$(&H1, MIDI.FileH))
 
  SELECT CASE Controller
   CASE MCMODULATION
@@ -469,8 +470,8 @@ DIM DataV
 END SUB
 
 SUB DeallocateActiveNote (Channel, ActiveNote)
-DIM DeactivatedNoteChannel
-DIM NoteToDeactivate
+DIM DeactivatedNoteChannel AS INTEGER
+DIM NoteToDeactivate AS INTEGER
 
  NoteToDeactivate = ActiveNoteList(Channel, ActiveNote)
  ActiveNote(Channel, NoteToDeactivate).Index = &H0
@@ -507,9 +508,9 @@ SUB DisplayKeys ()
  Display 1, 1, 15, "Press Q to quit"
 END SUB
 
-SUB DisplayNote (AllocatedChannel, Note)
-DIM x
-DIM y
+SUB DisplayNote (AllocatedChannel AS INTEGER, Note AS INTEGER)
+DIM x AS INTEGER
+DIM y AS INTEGER
 
  Channels(AllocatedChannel).x = (Note MOD 80) + 1
  Channels(AllocatedChannel).ColorV = 9 + (ChannelInstruments(AllocatedChannel).Instrument MOD &H6)
@@ -520,7 +521,7 @@ DIM y
  Display y, x, Channels(AllocatedChannel).ColorV, "#"
 END SUB
 
-FUNCTION GetHertz# (Note, Bend AS DOUBLE)
+FUNCTION GetHertz (Note AS INTEGER, Bend AS DOUBLE) AS DOUBLE
 DIM BentNote AS DOUBLE
 
  BentNote = Note + Bend
@@ -528,12 +529,12 @@ DIM BentNote AS DOUBLE
  BentNote = EXP(BentNote)
  BentNote = BentNote * 172.00093#
 
- GetHertz# = BentNote
+ GetHertz = BentNote
 END FUNCTION
 
 SUB GetInstrumentData ()
-DIM Column
-DIM Instrument
+DIM Column AS INTEGER
+DIM Instrument AS INTEGER
 
  RESTORE InstrumentData
  FOR Instrument = LBOUND(Instruments, 1) TO UBOUND(Instruments, 1)
@@ -543,7 +544,7 @@ DIM Instrument
  NEXT Instrument
 END SUB
 
-FUNCTION GetInvertedDeltaTicks (TicksPerQuarterNote) AS DOUBLE
+FUNCTION GetInvertedDeltaTicks (TicksPerQuarterNote AS INTEGER) AS DOUBLE
 DIM InvertedDeltaTicks AS DOUBLE
 
  InvertedDeltaTicks = EVENTTICKFREQUENCY
@@ -552,8 +553,8 @@ DIM InvertedDeltaTicks AS DOUBLE
 GetInvertedDeltaTicks = InvertedDeltaTicks
 END FUNCTION
 
-FUNCTION GetOctave (Hertz AS DOUBLE)
-DIM Octave
+FUNCTION GetOctave (Hertz AS DOUBLE) AS INTEGER
+DIM Octave AS INTEGER
 
  Octave = 0
  DO WHILE Hertz >= 1023.5
@@ -564,9 +565,9 @@ DIM Octave
  GetOctave = Octave + CINT(Hertz)
 END FUNCTION
 
-FUNCTION GetShortestDelay& (TrackCount AS LONG)
+FUNCTION GetShortestDelay (TrackCount AS LONG) AS LONG
 DIM ShortestDelay AS LONG
-DIM Track
+DIM Track AS INTEGER
 
  ShortestDelay = -1
  FOR Track = 0 TO TrackCount - 1
@@ -577,30 +578,30 @@ DIM Track
   END IF
  NEXT Track
 
- GetShortestDelay& = ShortestDelay
+ GetShortestDelay = ShortestDelay
 END FUNCTION
 
-SUB HandleSpecialTrackEvent (MIDISpecialEvent, Track, MIDI AS MIDIStr, Status AS StatusStr)
+SUB HandleSpecialTrackEvent (MIDISpecialEvent AS INTEGER, Track AS INTEGER, MIDI AS MIDIStr, Status AS StatusStr)
 DIM Ignored AS LONG
 
  SELECT CASE MIDISpecialEvent
   CASE MESONGPOSITION
-   SEEK #1, SEEK(1) + &H2
+   SEEK #MIDI.FileH, SEEK(MIDI.FileH) + &H2
   CASE MESONGSELECT
-   SEEK #1, SEEK(1) + &H1
+   SEEK #MIDI.FileH, SEEK(MIDI.FileH) + &H1
   CASE MESYSEXSTART, MESYSEXEND
-   Ignored = ReadVariableLengthInteger&
+   Ignored = ReadVariableLengthInteger(MIDI)
   CASE ELSE
    HandleSpecialTrackMetaEvent Track, MIDI, Status
  END SELECT
 END SUB
 
-SUB HandleSpecialTrackMetaEvent (Track, MIDI AS MIDIStr, Status AS StatusStr)
-DIM EventType
+SUB HandleSpecialTrackMetaEvent (Track AS INTEGER, MIDI AS MIDIStr, Status AS StatusStr)
+DIM EventType AS INTEGER
 DIM StringV AS STRING
 
- EventType = ASC(INPUT$(&H1, 1))
- StringV = INPUT$(ReadVariableLengthInteger&, 1)
+ EventType = ASC(INPUT$(&H1, MIDI.FileH))
+ StringV = INPUT$(ReadVariableLengthInteger(MIDI), MIDI.FileH)
 
  SELECT CASE EventType
   CASE MMETMARKER
@@ -613,25 +614,25 @@ DIM StringV AS STRING
    Tracks(Track).Status = -1
    Status.LoopEnd = TRUE
   CASE MMESETTEMPO
-   MIDI.Tempo = ParseBEDWord&(CHR$(&H0) + StringV) * MIDI.InvertedDeltaTicks
+   MIDI.Tempo = ParseBEDWord(CHR$(&H0) + StringV) * MIDI.InvertedDeltaTicks
   CASE MMETCOPYRIGHT, MMETGENERIC, MMETINSTRUMENT, MMETLYRIC, MMETMARKER, MMETTRACK
    Status.TextRow = 3 + (Status.TextRow - 2) MOD 20
-   Display Status.TextRow, 1, 8, "Meta" + STR$(EventType) + ": " + RemoveSpecialCharacters$(StringV)
+   Display Status.TextRow, 1, 8, "Meta" + STR$(EventType) + ": " + RemoveSpecialCharacters(StringV)
  END SELECT
 END SUB
 
 SUB HandleTrackEvent (Track, MIDI AS MIDIStr, Status AS StatusStr)
-DIM Byte
-DIM Channel
-DIM MIDIEvent
+DIM Byte AS INTEGER
+DIM Channel AS INTEGER
+DIM MIDIEvent AS INTEGER
 
- SEEK #1, Tracks(Track).Pointer + &H1
- Byte = ASC(INPUT$(&H1, 1))
+ SEEK #MIDI.FileH, Tracks(Track).Pointer + &H1
+ Byte = ASC(INPUT$(&H1, MIDI.FileH))
 
  IF Byte < MESYSEXSTART THEN
   IF IsRunningStatus(Byte) THEN
    Byte = Tracks(Track).Status OR MEFIRST
-   SEEK #1, Tracks(Track).Pointer + &H1
+   SEEK #MIDI.FileH, Tracks(Track).Pointer + &H1
   END IF
   
   Tracks(Track).Status = Byte
@@ -641,19 +642,19 @@ DIM MIDIEvent
 
   SELECT CASE MIDIEvent
    CASE MENOTEOFF
-    NoteOff Channel
+    NoteOff Channel, MIDI
    CASE MENOTEON
-    NoteOn Channel, Status
+    NoteOn Channel, Status, MIDI
    CASE MEPOLYPHONIC
-    NoteTouch Channel
+    NoteTouch Channel, MIDI
    CASE MECONTROLLER
     ControllerChange Channel, MIDI
    CASE MEINSTRUMENT
-    ChannelSettings(Channel).Patch = ASC(INPUT$(&H1, 1))
+    ChannelSettings(Channel).Patch = ASC(INPUT$(&H1, MIDI.FileH))
    CASE MEPRESSURE
-    UpdateAllLiveNotes Channel, MOPPRESSURE, ASC(INPUT$(&H1, 1))
+    UpdateAllLiveNotes Channel, MOPPRESSURE, ASC(INPUT$(&H1, MIDI.FileH))
    CASE MEBEND
-    ChannelSettings(Channel).Bend = (((ASC(INPUT$(&H1, 1)) AND &H7F) OR (ASC(INPUT$(&H1, 1)) * &H80)) - SIGN14BIT) * MIDI.BendSense
+    ChannelSettings(Channel).Bend = (((ASC(INPUT$(&H1, MIDI.FileH)) AND &H7F) OR (ASC(INPUT$(&H1, MIDI.FileH)) * &H80)) - SIGN14BIT) * MIDI.BendSense
     UpdateAllLiveNotes Channel, MOPPITCH, NULL
   END SELECT
  ELSE
@@ -662,7 +663,7 @@ DIM MIDIEvent
 END SUB
 
 SUB Initialize (Status AS StatusStr)
-DIM Channel
+DIM Channel AS INTEGER
  
  SCREEN 0
  WIDTH 80, 25
@@ -690,7 +691,7 @@ DIM Channel
  PLAY "ML MB T255"
 END SUB
 
-FUNCTION IsRunningStatus (Byte)
+FUNCTION IsRunningStatus (Byte AS INTEGER) AS INTEGER
  IsRunningStatus = ((Byte AND MEFIRST) = &H0)
 END FUNCTION
 
@@ -719,12 +720,12 @@ DIM KeyStroke AS STRING
  END IF
 END SUB
 
-SUB NoteOff (Channel)
-DIM ActiveNote
-DIM Note
+SUB NoteOff (Channel AS INTEGER, MIDI AS MIDIStr)
+DIM ActiveNote AS INTEGER
+DIM Note AS INTEGER
 
- Note = ASC(INPUT$(&H1, 1))
- SEEK #1, SEEK(1) + &H1
+ Note = ASC(INPUT$(&H1, MIDI.FileH))
+ SEEK #MIDI.FileH, SEEK(MIDI.FileH) + &H1
 
  ChannelSettings(Channel).Bend = &H0
  ActiveNote = ActiveNote(Channel, Note).Index
@@ -733,16 +734,16 @@ DIM Note
  END IF
 END SUB
 
-SUB NoteOn (Channel, Status AS StatusStr)
-DIM ActiveNoteCount
-DIM AllocatedChannel
-DIM Instrument
-DIM NoteToBePlayed
-DIM TrackNote
-DIM Volume
+SUB NoteOn (Channel AS INTEGER, Status AS StatusStr, MIDI AS MIDIStr)
+DIM ActiveNoteCount AS INTEGER
+DIM AllocatedChannel AS INTEGER
+DIM Instrument AS INTEGER
+DIM NoteToBePlayed AS INTEGER
+DIM TrackNote AS INTEGER
+DIM Volume AS INTEGER
 
- TrackNote = ASC(INPUT$(&H1, 1))
- Volume = ASC(INPUT$(&H1, 1))
+ TrackNote = ASC(INPUT$(&H1, MIDI.FileH))
+ Volume = ASC(INPUT$(&H1, MIDI.FileH))
 
  IF Volume = NULL THEN
   ActiveNoteCount = ActiveNote(Channel, TrackNote).Index
@@ -786,19 +787,19 @@ DIM Volume
 
    DisplayNote AllocatedChannel, TrackNote
 
-   OPLNoteOn AllocatedChannel, GetHertz#(TrackNote, ChannelSettings(Channel).Bend)
+   OPLNoteOn AllocatedChannel, GetHertz(TrackNote, ChannelSettings(Channel).Bend)
    UpdateNoteVolume AllocatedChannel, Channel, Volume
   END IF
  END IF
 END SUB
 
-SUB NoteTouch (Channel)
-DIM ActiveChannel
-DIM Note
-DIM Volume
+SUB NoteTouch (Channel AS INTEGER, MIDI AS MIDIStr)
+DIM ActiveChannel AS INTEGER
+DIM Note AS INTEGER
+DIM Volume AS INTEGER
 
- Note = ASC(INPUT$(&H1, 1))
- Volume = ASC(INPUT$(&H1, 1))
+ Note = ASC(INPUT$(&H1, MIDI.FileH))
+ Volume = ASC(INPUT$(&H1, MIDI.FileH))
  IF NOT ActiveNote(Channel, Note).Index = &H0 THEN
   ActiveChannel = ActiveNote(Channel, Note).AdlibChannel
   Display 20 - ActiveChannel, Channels(ActiveChannel).x, Channels(ActiveChannel).ColorV, "&"
@@ -808,49 +809,53 @@ DIM Volume
 END SUB
 
 SUB OpenMIDI (FileName AS STRING, MIDI AS MIDIStr)
-DIM TicksPerQuarterNote
-DIM Track
+DIM FileH AS INTEGER
+DIM TicksPerQuarterNote AS INTEGER
+DIM Track AS INTEGER
 DIM TrackDelayPosition AS LONG
 DIM TrackLength AS LONG
 
- OPEN FileName$ FOR INPUT LOCK READ AS #1
- CLOSE #1
+ IF DIR$(FileName) = "" THEN
+  MIDI.FileH = 0
+  ERROR 53
+ ELSE
+  MIDI.FileH = FREEFILE
+  OPEN FileName FOR BINARY LOCK READ WRITE AS #MIDI.FileH
+   IF INPUT$(&H4, MIDI.FileH) = "MThd" THEN
+    IF ParseBEDWord(INPUT$(&H4, MIDI.FileH)) = MTHDBLOCKDEFAULTLENGTH THEN
+     MIDI.Format = ParseBEWord(INPUT$(&H2, MIDI.FileH))
+     MIDI.TrackCount = ParseBEWord(INPUT$(&H2, MIDI.FileH))
 
- OPEN FileName$ FOR BINARY LOCK READ WRITE AS #1
-  IF INPUT$(&H4, 1) = "MThd" THEN
-   IF ParseBEDWord&(INPUT$(&H4, 1)) = MTHDBLOCKDEFAULTLENGTH THEN
-    MIDI.Format = ParseBEWord(INPUT$(&H2, 1))
-    MIDI.TrackCount = ParseBEWord(INPUT$(&H2, 1))
-
-    REDIM Loops(0 TO MIDI.TrackCount - 1) AS TrackStr
-    REDIM LoopsBackup(0 TO MIDI.TrackCount - 1) AS TrackStr
-    REDIM Tracks(0 TO MIDI.TrackCount - 1) AS TrackStr
+     REDIM Loops(0 TO MIDI.TrackCount - 1) AS TrackStr
+     REDIM LoopsBackup(0 TO MIDI.TrackCount - 1) AS TrackStr
+     REDIM Tracks(0 TO MIDI.TrackCount - 1) AS TrackStr
     
-    TicksPerQuarterNote = ParseBEWord(INPUT$(&H2, 1))
-    MIDI.InvertedDeltaTicks = GetInvertedDeltaTicks(TicksPerQuarterNote)
-    MIDI.Tempo = DEFAULTTEMPO * MIDI.InvertedDeltaTicks
-    MIDI.BendSense = &H2 / MAXIMUMSIGNEDBEND
-
-    FOR Track = 0 TO MIDI.TrackCount - 1
-     IF INPUT$(&H4, 1) = "MTrk" THEN
-      TrackLength = ParseBEDWord&(INPUT$(&H4, 1))
-      TrackDelayPosition = LOC(1)
-      Tracks(Track).Delay = ReadVariableLengthInteger&
-      Tracks(Track).Pointer = LOC(1)
-      SEEK #1, (TrackDelayPosition + TrackLength) + &H1
-     ELSE
-      ERROR 13
-     END IF
-    NEXT Track
+     TicksPerQuarterNote = ParseBEWord(INPUT$(&H2, MIDI.FileH))
+     MIDI.InvertedDeltaTicks = GetInvertedDeltaTicks(TicksPerQuarterNote)
+     MIDI.Tempo = DEFAULTTEMPO * MIDI.InvertedDeltaTicks
+     MIDI.BendSense = &H2 / MAXIMUMSIGNEDBEND
+  
+     FOR Track = 0 TO MIDI.TrackCount - 1
+      IF INPUT$(&H4, MIDI.FileH) = "MTrk" THEN
+       TrackLength = ParseBEDWord(INPUT$(&H4, MIDI.FileH))
+       TrackDelayPosition = LOC(MIDI.FileH)
+       Tracks(Track).Delay = ReadVariableLengthInteger(MIDI)
+       Tracks(Track).Pointer = LOC(MIDI.FileH)
+       SEEK #MIDI.FileH, (TrackDelayPosition + TrackLength) + &H1
+      ELSE
+       ERROR 13
+      END IF
+     NEXT Track
+    ELSE
+     ERROR 6
+    END IF
    ELSE
-    ERROR 6
+    ERROR 13
    END IF
-  ELSE
-   ERROR 13
-  END IF
+ END IF
 END SUB
 
-SUB OPLNoteOff (Channel)
+SUB OPLNoteOff (Channel AS INTEGER)
 DIM OPL AS OPLStr
 
  OPLSetUp Channel, OPL
@@ -858,8 +863,8 @@ DIM OPL AS OPLStr
  OUT OPL.DataV, ChannelInstruments(Channel).Pitch AND (OPLB0FREQUENCYMASK OR OPLB0BLOCKMASK)
 END SUB
 
-SUB OPLNoteOn (Channel, Hertz AS DOUBLE)
-DIM Octave
+SUB OPLNoteOn (Channel AS INTEGER, Hertz AS DOUBLE)
+DIM Octave AS INTEGER
 DIM OPL AS OPLStr
 
  Octave = GetOctave(Hertz)
@@ -874,8 +879,8 @@ DIM OPL AS OPLStr
  ChannelInstruments(Channel).Pitch = (Octave AND &HFF00) \ &H100&
 END SUB
 
-SUB OPLPatch (Channel)
-DIM Instrument
+SUB OPLPatch (Channel AS INTEGER)
+DIM Instrument AS INTEGER
 DIM OPL AS OPLStr
 
  Instrument = ChannelInstruments(Channel).Instrument
@@ -957,7 +962,7 @@ SUB OPLSetUp (Channel, OPL AS OPLStr)
 END SUB
 
 SUB OPLSilence ()
-DIM Channel
+DIM Channel AS INTEGER
 
  FOR Channel = LBOUND(Channels) TO UBOUND(Channels)
   OPLNoteOff Channel
@@ -965,10 +970,10 @@ DIM Channel
  NEXT Channel
 END SUB
 
-SUB OPLTouchReal (Channel, Volume)
-DIM Attenuation
-DIM Instrument
-DIM KSLA
+SUB OPLTouchReal (Channel AS INTEGER, Volume AS INTEGER)
+DIM Attenuation AS INTEGER
+DIM Instrument AS INTEGER
+DIM KSLA AS INTEGER
 DIM OPL AS OPLStr
 
  Instrument = ChannelInstruments(Channel).Instrument
@@ -988,24 +993,24 @@ DIM OPL AS OPLStr
  OUT OPL.DataV, ((KSLA OR OPLMAXIMUMATTENUATION) - Volume) + Attenuation
 END SUB
 
-FUNCTION ParseBEDWord& (Buffer AS STRING)
+FUNCTION ParseBEDWord (Buffer AS STRING) AS LONG
 DIM DWord AS LONG
 
  DWord = ASC(MID$(Buffer, &H4, &H1))
  DWord = DWord OR (ASC(MID$(Buffer, &H3, &H1)) * &H100&)
  DWord = DWord OR (ASC(MID$(Buffer, &H2, &H1)) * &H10000)
- ParseBEDWord& = DWord OR (ASC(MID$(Buffer, &H1, &H1)) * &H1000000)
+ ParseBEDWord = DWord OR (ASC(MID$(Buffer, &H1, &H1)) * &H1000000)
 END FUNCTION
 
-FUNCTION ParseBEWord (Buffer AS STRING)
-DIM Word
+FUNCTION ParseBEWord (Buffer AS STRING) AS INTEGER
+DIM Word AS INTEGER
 
  Word = ASC(MID$(Buffer, &H2, &H1))
  ParseBEWord = Word OR (ASC(MID$(Buffer, &H1, &H1)) * &H100)
 END FUNCTION
 
 SUB ProcessTrackEvents (MIDI AS MIDIStr, Status AS StatusStr)
-DIM Track
+DIM Track AS INTEGER
 
  FOR Track = 0 TO MIDI.TrackCount - 1
   LoopsBackup(Track).Delay = Tracks(Track).Delay
@@ -1023,8 +1028,8 @@ DIM Track
     Status.TextRow = 2
     DisplayKeys
    ELSE
-    Tracks(Track).Delay = Tracks(Track).Delay + ReadVariableLengthInteger&
-    Tracks(Track).Pointer = LOC(1)
+    Tracks(Track).Delay = Tracks(Track).Delay + ReadVariableLengthInteger(MIDI)
+    Tracks(Track).Pointer = LOC(MIDI.FileH)
    END IF
   END IF
  NEXT Track
@@ -1033,33 +1038,33 @@ DIM Track
   SaveLoopStart MIDI, Status
  END IF
 
- DO WHILE ScheduleEventsAfterDelay#(GetShortestDelay&(MIDI.TrackCount), MIDI, Status) < 0
+ DO WHILE ScheduleEventsAfterDelay(GetShortestDelay(MIDI.TrackCount), MIDI, Status) < 0
  LOOP
 END SUB
 
-SUB Quit ()
+SUB Quit (MIDI AS MIDIStr)
  PLAY OFF
  Display NULL, NULL, 9, "End!"
  OPLSilence
- CLOSE #1
+ CLOSE #MIDI.FileH
  COLOR 7, 0
 END SUB
 
-FUNCTION ReadVariableLengthInteger& ()
-DIM Byte
+FUNCTION ReadVariableLengthInteger (MIDI AS MIDIStr) AS LONG
+DIM Byte AS INTEGER
 DIM VariableLengthInteger AS LONG
 
  VariableLengthInteger = &H0
  DO
-  Byte = ASC(INPUT$(&H1, 1))
+  Byte = ASC(INPUT$(&H1, MIDI.FileH))
   VariableLengthInteger = (VariableLengthInteger * &H80) OR (Byte AND &H7F)
  LOOP UNTIL Byte < &H80
 
  ReadVariableLengthInteger = VariableLengthInteger
 END FUNCTION
 
-FUNCTION RemoveSpecialCharacters$ (Text AS STRING)
-DIM Position
+FUNCTION RemoveSpecialCharacters (Text AS STRING) AS STRING
+DIM Position AS INTEGER
 DIM Result AS STRING
 
  Result = Text
@@ -1070,7 +1075,7 @@ DIM Result AS STRING
   END SELECT
  NEXT Position
 
- RemoveSpecialCharacters$ = Result
+ RemoveSpecialCharacters = Result
 END FUNCTION
 
 SUB ResetAllControllers (Channel)
@@ -1107,10 +1112,10 @@ DIM Track AS LONG
  Status.LoopStart = FALSE
 END SUB
 
-FUNCTION ScheduleEventsAfterDelay# (Delay AS LONG, MIDI AS MIDIStr, Status AS StatusStr)
+FUNCTION ScheduleEventsAfterDelay (Delay AS LONG, MIDI AS MIDIStr, Status AS StatusStr) AS DOUBLE
 DIM AgeIncrease AS DOUBLE
-DIM Channel
-DIM Track
+DIM Channel AS INTEGER
+DIM Track AS INTEGER
  
  AgeIncrease = Delay * MIDI.Tempo
 
@@ -1126,14 +1131,14 @@ DIM Track
   Status.PlayWait = Status.PlayWait + AgeIncrease
  END IF
  
- ScheduleEventsAfterDelay# = AgeIncrease
+ ScheduleEventsAfterDelay = AgeIncrease
 END FUNCTION
 
-SUB UpdateAllLiveNotes (Channel, MIDIOperation, Volume)
-DIM ActiveChannel
-DIM ActiveCount
-DIM ActiveNote
-DIM Note
+SUB UpdateAllLiveNotes (Channel AS INTEGER, MIDIOperation AS INTEGER, Volume AS INTEGER)
+DIM ActiveChannel AS INTEGER
+DIM ActiveCount AS INTEGER
+DIM ActiveNote AS INTEGER
+DIM Note AS INTEGER
 
  ActiveCount = ActiveNoteCount(Channel)
 
@@ -1146,7 +1151,7 @@ DIM Note
    CASE MOPPAN
     UpdateNotePan ActiveChannel, Channel
    CASE MOPPITCH
-    OPLNoteOn ActiveChannel, GetHertz#(ActiveNote(Channel, Note).Note, ChannelSettings(Channel).Bend)
+    OPLNoteOn ActiveChannel, GetHertz(ActiveNote(Channel, Note).Note, ChannelSettings(Channel).Bend)
    CASE MOPPRESSURE
     ActiveNote(Channel, Note).Volume = Volume
     UpdateNoteVolume ActiveChannel, Channel, ActiveNote(Channel, Note).Volume
@@ -1156,7 +1161,7 @@ DIM Note
  NEXT ActiveNote
 END SUB
 
-SUB UpdateNotePan (ActiveChannel, Channel)
+SUB UpdateNotePan (ActiveChannel AS INTEGER, Channel AS INTEGER)
 DIM OPL AS OPLStr
 
  ChannelInstruments(ActiveChannel).Panning = ChannelSettings(Channel).Panning
@@ -1165,7 +1170,7 @@ DIM OPL AS OPLStr
  OUT OPL.DataV, Instruments(ChannelInstruments(ActiveChannel).Instrument, 5) - ChannelInstruments(ActiveChannel).Panning
 END SUB
 
-SUB UpdateNoteVolume (ActiveChannel, Channel, Volume)
+SUB UpdateNoteVolume (ActiveChannel AS INTEGER, Channel AS INTEGER, Volume AS INTEGER)
  IF Volume = &H0 THEN
   OPLTouchReal ActiveChannel, &H0
  ELSE
