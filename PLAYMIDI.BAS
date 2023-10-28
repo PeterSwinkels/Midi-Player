@@ -181,9 +181,9 @@ DECLARE SUB UpdateNoteVolume (ActiveChannel AS INTEGER, Channel AS INTEGER, Volu
 DIM MIDI AS MIDIStr
 DIM Status AS StatusStr
 
-DIM SHARED ActiveNote(0 TO 15, 0 TO 127) AS ActiveNoteStr
 DIM SHARED ActiveNoteCount(0 TO 15) AS INTEGER
 DIM SHARED ActiveNoteList(0 TO 15, 0 TO 99) AS INTEGER
+DIM SHARED ActiveNotes(0 TO 15, 0 TO 127) AS ActiveNoteStr
 DIM SHARED Channels(0 TO 17) AS ChannelStr
 DIM SHARED ChannelInstruments(0 TO 17) AS ChannelInstrumentStr
 DIM SHARED ChannelSettings(0 TO 15) AS ChannelSettingsStr
@@ -474,8 +474,8 @@ DIM DeactivatedNoteChannel AS INTEGER
 DIM NoteToDeactivate AS INTEGER
 
  NoteToDeactivate = ActiveNoteList(Channel, ActiveNote)
- ActiveNote(Channel, NoteToDeactivate).Index = &H0
- DeactivatedNoteChannel = ActiveNote(Channel, NoteToDeactivate).AdlibChannel
+ ActiveNotes(Channel, NoteToDeactivate).Index = &H0
+ DeactivatedNoteChannel = ActiveNotes(Channel, NoteToDeactivate).AdlibChannel
  Channels(DeactivatedNoteChannel).Age = &H0
  Channels(DeactivatedNoteChannel).IsOn = FALSE
 
@@ -490,8 +490,8 @@ DIM NoteToDeactivate AS INTEGER
  IF NOT ActiveNote = ActiveNoteCount(Channel) THEN
   NoteToDeactivate = ActiveNoteList(Channel, ActiveNoteCount(Channel))
   ActiveNoteList(Channel, ActiveNote) = NoteToDeactivate
-  ActiveNote(Channel, NoteToDeactivate).Index = ActiveNote
-  Channels(ActiveNote(Channel, NoteToDeactivate).AdlibChannel).ActiveIndex = ActiveNote
+  ActiveNotes(Channel, NoteToDeactivate).Index = ActiveNote
+  Channels(ActiveNotes(Channel, NoteToDeactivate).AdlibChannel).ActiveIndex = ActiveNote
  END IF
 
  ActiveNoteCount(Channel) = ActiveNoteCount(Channel) - 1
@@ -728,7 +728,7 @@ DIM Note AS INTEGER
  SEEK #MIDI.FileH, SEEK(MIDI.FileH) + &H1
 
  ChannelSettings(Channel).Bend = &H0
- ActiveNote = ActiveNote(Channel, Note).Index
+ ActiveNote = ActiveNotes(Channel, Note).Index
  IF NOT ActiveNote = &H0 THEN
   DeallocateActiveNote Channel, ActiveNote
  END IF
@@ -746,12 +746,12 @@ DIM Volume AS INTEGER
  Volume = ASC(INPUT$(&H1, MIDI.FileH))
 
  IF Volume = NULL THEN
-  ActiveNoteCount = ActiveNote(Channel, TrackNote).Index
+  ActiveNoteCount = ActiveNotes(Channel, TrackNote).Index
   IF NOT ActiveNoteCount = 0 THEN
    DeallocateActiveNote Channel, ActiveNoteCount
   END IF
  ELSE
-  IF ActiveNote(Channel, TrackNote).Index = &H0 THEN
+  IF ActiveNotes(Channel, TrackNote).Index = &H0 THEN
    IF Channel = PERCUSSION_ONLY THEN
     Instrument = GP_01 + TrackNote
     NoteToBePlayed = Instruments(Instrument, PERCUSSIVE_NOTES)
@@ -772,13 +772,13 @@ DIM Volume AS INTEGER
    Status.Began = TRUE
 
    ActiveNoteCount = ActiveNoteCount(Channel) + 1
-   ActiveNote(Channel, TrackNote).Index = ActiveNoteCount
    ActiveNoteList(Channel, ActiveNoteCount) = TrackNote
    ActiveNoteCount(Channel) = ActiveNoteCount
+   ActiveNotes(Channel, TrackNote).Index = ActiveNoteCount
 
-   ActiveNote(Channel, TrackNote).AdlibChannel = AllocatedChannel
-   ActiveNote(Channel, TrackNote).Note = NoteToBePlayed
-   ActiveNote(Channel, TrackNote).Volume = Volume
+   ActiveNotes(Channel, TrackNote).AdlibChannel = AllocatedChannel
+   ActiveNotes(Channel, TrackNote).Note = NoteToBePlayed
+   ActiveNotes(Channel, TrackNote).Volume = Volume
    Channels(AllocatedChannel).MIDIChannel = Channel
    Channels(AllocatedChannel).ActiveIndex = ActiveNoteCount
    OPLPatch AllocatedChannel
@@ -800,10 +800,10 @@ DIM Volume AS INTEGER
 
  Note = ASC(INPUT$(&H1, MIDI.FileH))
  Volume = ASC(INPUT$(&H1, MIDI.FileH))
- IF NOT ActiveNote(Channel, Note).Index = &H0 THEN
-  ActiveChannel = ActiveNote(Channel, Note).AdlibChannel
+ IF NOT ActiveNotes(Channel, Note).Index = &H0 THEN
+  ActiveChannel = ActiveNotes(Channel, Note).AdlibChannel
   Display 20 - ActiveChannel, Channels(ActiveChannel).x, Channels(ActiveChannel).ColorV, "&"
-  ActiveNote(Channel, Note).Volume = Volume
+  ActiveNotes(Channel, Note).Volume = Volume
   UpdateNoteVolume ActiveChannel, Channel, Volume
  END IF
 END SUB
@@ -1144,19 +1144,19 @@ DIM Note AS INTEGER
 
  FOR ActiveNote = 1 TO ActiveCount
   Note = ActiveNoteList(Channel, ActiveNote)
-  ActiveChannel = ActiveNote(Channel, Note).AdlibChannel
+  ActiveChannel = ActiveNotes(Channel, Note).AdlibChannel
   SELECT CASE MIDIOperation
    CASE MOP_OFF
     DeallocateActiveNote Channel, ActiveNote
    CASE MOP_PAN
     UpdateNotePan ActiveChannel, Channel
    CASE MOP_PITCH
-    OPLNoteOn ActiveChannel, GetHertz(ActiveNote(Channel, Note).Note, ChannelSettings(Channel).Bend)
+    OPLNoteOn ActiveChannel, GetHertz(ActiveNotes(Channel, Note).Note, ChannelSettings(Channel).Bend)
    CASE MOP_PRESSURE
-    ActiveNote(Channel, Note).Volume = Volume
-    UpdateNoteVolume ActiveChannel, Channel, ActiveNote(Channel, Note).Volume
+    ActiveNotes(Channel, Note).Volume = Volume
+    UpdateNoteVolume ActiveChannel, Channel, ActiveNotes(Channel, Note).Volume
    CASE MOP_VOLUME
-    UpdateNoteVolume ActiveChannel, Channel, ActiveNote(Channel, Note).Volume
+    UpdateNoteVolume ActiveChannel, Channel, ActiveNotes(Channel, Note).Volume
   END SELECT
  NEXT ActiveNote
 END SUB
