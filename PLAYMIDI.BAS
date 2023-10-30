@@ -137,7 +137,7 @@ END TYPE
 
 DECLARE FUNCTION AllocateChannel (Instrument AS INTEGER) AS INTEGER
 DECLARE FUNCTION GetHertz (Note AS INTEGER, Bend AS DOUBLE) AS DOUBLE
-DECLARE FUNCTION GetInvertedDeltaTicks (TicksPerQuarterNote) AS DOUBLE
+DECLARE FUNCTION GetInvertedDeltaTicks (TicksPerQuarterNote AS INTEGER) AS DOUBLE
 DECLARE FUNCTION GetOctave (Hertz AS DOUBLE) AS INTEGER
 DECLARE FUNCTION GetShortestDelay (TrackCount AS LONG) AS LONG
 DECLARE FUNCTION IsRunningStatus (Byte AS INTEGER) AS INTEGER
@@ -469,7 +469,7 @@ DIM DataV AS INTEGER
  END SELECT
 END SUB
 
-SUB DeallocateActiveNote (Channel, ActiveNote)
+SUB DeallocateActiveNote (Channel AS INTEGER, ActiveNote AS INTEGER)
 DIM DeactivatedNoteChannel AS INTEGER
 DIM NoteToDeactivate AS INTEGER
 
@@ -941,7 +941,7 @@ DIM OPL AS OPLStr
  OPLSilence
 END SUB
 
-SUB OPLSetUp (Channel, OPL AS OPLStr)
+SUB OPLSetUp (Channel AS INTEGER, OPL AS OPLStr)
  OPL.DataV = &H0
  OPL.Index = &H0
  OPL.Operator = &H0
@@ -1078,7 +1078,7 @@ DIM Result AS STRING
  RemoveSpecialCharacters = Result
 END FUNCTION
 
-SUB ResetAllControllers (Channel)
+SUB ResetAllControllers (Channel AS INTEGER)
  ChannelInstruments(Channel).Panning = &H0
  ChannelSettings(Channel).Bend = &H0
  ChannelSettings(Channel).Vibrato = &H0
