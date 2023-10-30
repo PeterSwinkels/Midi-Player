@@ -497,7 +497,7 @@ DIM NoteToDeactivate AS INTEGER
  ActiveNoteCount(Channel) = ActiveNoteCount(Channel) - 1
 END SUB
 
-SUB Display (Row, Column, ColorV, Text AS STRING)
+SUB Display (Row AS INTEGER, Column AS INTEGER, ColorV AS INTEGER, Text AS STRING)
  COLOR ColorV
  IF NOT Column = NULL THEN LOCATE , Column
  IF NOT Row = NULL THEN LOCATE Row
@@ -897,13 +897,13 @@ DIM OPL AS OPLStr
  OUT OPL.DataV, Instruments(Instrument, &H4) AND &HFF&
 
  OUT OPL.Index, &H20 + OPL.Operator + &H3
- OUT OPL.DataV, (Instruments(Instrument, &H0) AND &HFF00&) / &H100&
+ OUT OPL.DataV, (Instruments(Instrument, &H0) AND &HFF00&) \ &H100&
  OUT OPL.Index, &H60 + OPL.Operator + &H3
- OUT OPL.DataV, (Instruments(Instrument, &H2) AND &HFF00&) / &H100&
+ OUT OPL.DataV, (Instruments(Instrument, &H2) AND &HFF00&) \ &H100&
  OUT OPL.Index, &H80 + OPL.Operator + &H3
- OUT OPL.DataV, (Instruments(Instrument, &H3) AND &HFF00&) / &H100&
+ OUT OPL.DataV, (Instruments(Instrument, &H3) AND &HFF00&) \ &H100&
  OUT OPL.Index, &HE0 + OPL.Operator + &H3
- OUT OPL.DataV, (Instruments(Instrument, &H4) AND &HFF00&) / &H100&
+ OUT OPL.DataV, (Instruments(Instrument, &H4) AND &HFF00&) \ &H100&
 END SUB
 
 SUB OPLReset ()
@@ -986,7 +986,7 @@ DIM OPL AS OPLStr
  OUT OPL.Index, &H40 + OPL.Operator
  OUT OPL.DataV, ((KSLA OR OPL_MAXIMUM_ATTENUATION) - Volume) + Attenuation
                                
- KSLA = (Instruments(Instrument, 1) AND &HFF00&) / &H100&
+ KSLA = (Instruments(Instrument, 1) AND &HFF00&) \ &H100&
  Attenuation = ((KSLA AND OPL_ATTENUATION_MASK) * Volume) \ OPL_MAXIMUM_VOLUME
 
  OUT OPL.Index, &H43 + OPL.Operator
@@ -1171,10 +1171,19 @@ DIM OPL AS OPLStr
 END SUB
 
 SUB UpdateNoteVolume (ActiveChannel AS INTEGER, Channel AS INTEGER, Volume AS INTEGER)
+DIM UpdatedVolume AS DOUBLE
+
+ 
  IF Volume = &H0 THEN
   OPLTouchReal ActiveChannel, &H0
  ELSE
-  OPLTouchReal ActiveChannel, (LOG((Volume * ChannelSettings(Channel).Volume) / &H3F01) * &H8) + &H3F
+  UpdatedVolume = Volume * ChannelSettings(Channel).Volume
+  UpdatedVolume = UpdatedVolume / &H3F01
+  UpdatedVolume = LOG(UpdatedVolume)
+  UpdatedVolume = UpdatedVolume * &H8
+  UpdatedVolume = UpdatedVolume + &H3F
+
+  OPLTouchReal ActiveChannel, CINT(UpdatedVolume)
  END IF
 END SUB
 
