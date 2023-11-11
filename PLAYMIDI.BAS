@@ -3,12 +3,18 @@ DEFINT A-Z
 OPTION BASE 0
 OPTION EXPLICIT
 
+CONST ADLIB_VOLUME_RANGE = &H3F
+CONST AMIGA_SAMPLE_RATE = 8363
+CONST DEFAULT_PITCH_BEND# = .000244140625#
 CONST DEFAULT_TEMPO = 1000000
+CONST DOUBLE_LINEAR_AMPLITUDE = &H8
+CONST ET_SEMITONES_PER_OCTAVE = 12
 CONST EVENT_BUFFER_SIZE = 2
 CONST EVENT_TICK_FREQUENCY = 16320
 CONST FALSE = 0
 CONST GP_01 = 93
 CONST MAXIMUM_SIGNED_B_END = &H2000
+CONST MAXIMUM_VOLUME = &H3F01
 CONST MC_ALL_NOTES_OFF = &H7B
 CONST MC_BEND = &H6
 CONST MC_MODULATION = &H1
@@ -67,8 +73,11 @@ CONST OPL_INDEX1 = OPL_BASE + &H0
 CONST OPL_INDEX2 = OPL_BASE + &H2
 CONST OPL_MAXIMUM_ATTENUATION = &H3F
 CONST OPL_MAXIMUM_VOLUME = &H3F
+CONST PC_SAMPLE_RATE = 44100
+CONST AMIGA_PC_SAMPLING_RATIO# = AMIGA_SAMPLE_RATE / PC_SAMPLE_RATE
 CONST PERCUSSION_ONLY = &H9
 CONST PERCUSSIVE_NOTES = &H6
+CONST SCREAM_TRACKER_3_NOTE_B = 907
 CONST SIGN_14BIT = &H2000
 CONST TRUE = -1
 
@@ -143,10 +152,11 @@ DECLARE FUNCTION GetShortestDelay (TrackCount AS LONG) AS LONG
 DECLARE FUNCTION IsRunningStatus (Byte AS INTEGER) AS INTEGER
 DECLARE FUNCTION ParseBEDWord (Buffer AS STRING) AS LONG
 DECLARE FUNCTION ParseBEWord (Buffer AS STRING) AS INTEGER
+DECLARE FUNCTION ReadInteger (MIDI AS MIDIStr) AS INTEGER
 DECLARE FUNCTION ReadVariableLengthInteger (MIDI AS MIDIStr) AS LONG
 DECLARE FUNCTION RemoveSpecialCharacters (Text AS STRING) AS STRING
 DECLARE FUNCTION ScheduleEventsAfterDelay (Delay AS LONG, MIDI AS MIDIStr, Status AS StatusStr) AS DOUBLE
-DECLARE SUB ChangePanning (Channel AS INTEGER, DataV AS INTEGER)
+DECLARE SUB ChangePanning (Channel AS INTEGER, Panning AS INTEGER)
 DECLARE SUB ControllerChange (Channel AS INTEGER, MIDI AS MIDIStr)
 DECLARE SUB DeallocateActiveNote (Channel AS INTEGER, Note AS INTEGER)
 DECLARE SUB Display (Row AS INTEGER, Column AS INTEGER, ColorV AS INTEGER, Text AS STRING)
@@ -432,17 +442,17 @@ DIM Score AS DOUBLE
  AllocateChannel = AllocatedChannel
 END FUNCTION
 
-SUB ChangePanning (Channel AS INTEGER, DataV AS INTEGER)
-DIM Panning AS INTEGER
+SUB ChangePanning (Channel AS INTEGER, Panning AS INTEGER)
+DIM NewPanning AS INTEGER
 
- Panning = NULL
- IF DataV < &H30 THEN
-  Panning = OPL_C0_RIGHT_SPEAKER_ENABLE
- ELSEIF DataV >= &H50 THEN
-  Panning = OPL_C0_LEFT_SPEAKER_ENABLE
+ NewPanning = NULL
+ IF Panning < &H30 THEN
+  NewPanning = OPL_C0_RIGHT_SPEAKER_ENABLE
+ ELSEIF Panning >= &H50 THEN
+  NewPanning = OPL_C0_LEFT_SPEAKER_ENABLE
  END IF
 
- ChannelSettings(Channel).Panning = Panning
+ ChannelSettings(Channel).Panning = NewPanning
 END SUB
 
 SUB ControllerChange (Channel AS INTEGER, MIDI AS MIDIStr)
@@ -522,14 +532,13 @@ DIM y AS INTEGER
 END SUB
 
 FUNCTION GetHertz (Note AS INTEGER, Bend AS DOUBLE) AS DOUBLE
-DIM BentNote AS DOUBLE
+DIM NoteBend AS DOUBLE
 
- BentNote = Note + Bend
- BentNote = BentNote * .057762265#
- BentNote = EXP(BentNote)
- BentNote = BentNote * 172.00093#
+ NoteBend = Note + Bend
+ NoteBend = NoteBend / ET_SEMITONES_PER_OCTAVE
+ NoteBend = 2 ^ NoteBend
 
- GetHertz = BentNote
+ GetHertz = SCREAM_TRACKER_3_NOTE_B * NoteBend * AMIGA_PC_SAMPLING_RATIO#
 END FUNCTION
 
 SUB GetInstrumentData ()
@@ -621,7 +630,7 @@ DIM StringV AS STRING
  END SELECT
 END SUB
 
-SUB HandleTrackEvent (Track, MIDI AS MIDIStr, Status AS StatusStr)
+SUB HandleTrackEvent (Track AS INTEGER, MIDI AS MIDIStr, Status AS StatusStr)
 DIM Byte AS INTEGER
 DIM Channel AS INTEGER
 DIM MIDIEvent AS INTEGER
@@ -654,7 +663,7 @@ DIM MIDIEvent AS INTEGER
    CASE ME_PRESSURE
     UpdateAllLiveNotes Channel, MOP_PRESSURE, ASC(INPUT$(&H1, MIDI.FileH))
    CASE ME_BEND
-    ChannelSettings(Channel).Bend = (((ASC(INPUT$(&H1, MIDI.FileH)) AND &H7F) OR (ASC(INPUT$(&H1, MIDI.FileH)) * &H80)) - SIGN_14BIT) * MIDI.BendSense
+    ChannelSettings(Channel).Bend = (ReadInteger(MIDI) - SIGN_14BIT) * MIDI.BendSense
     UpdateAllLiveNotes Channel, MOP_PITCH, NULL
   END SELECT
  ELSE
@@ -833,8 +842,8 @@ DIM TrackLength AS LONG
      TicksPerQuarterNote = ParseBEWord(INPUT$(&H2, MIDI.FileH))
      MIDI.InvertedDeltaTicks = GetInvertedDeltaTicks(TicksPerQuarterNote)
      MIDI.Tempo = DEFAULT_TEMPO * MIDI.InvertedDeltaTicks
-     MIDI.BendSense = &H2 / MAXIMUM_SIGNED_B_END
-  
+     MIDI.BendSense = DEFAULT_PITCH_BEND
+
      FOR Track = 0 TO MIDI.TrackCount - 1
       IF INPUT$(&H4, MIDI.FileH) = "MTrk" THEN
        TrackLength = ParseBEDWord(INPUT$(&H4, MIDI.FileH))
@@ -1050,6 +1059,16 @@ SUB Quit (MIDI AS MIDIStr)
  COLOR 7, 0
 END SUB
 
+FUNCTION ReadInteger (MIDI AS MIDIStr) AS INTEGER
+DIM Byte AS INTEGER
+DIM IntegerV AS INTEGER
+
+ IntegerV = ASC(INPUT$(&H1, MIDI.FileH)) AND &H7F
+ IntegerV = IntegerV OR (ASC(INPUT$(&H1, MIDI.FileH)) * &H80)
+
+ ReadInteger = IntegerV
+END FUNCTION
+
 FUNCTION ReadVariableLengthInteger (MIDI AS MIDIStr) AS LONG
 DIM Byte AS INTEGER
 DIM VariableLengthInteger AS LONG
@@ -1178,11 +1197,11 @@ DIM UpdatedVolume AS DOUBLE
   OPLTouchReal ActiveChannel, &H0
  ELSE
   UpdatedVolume = Volume * ChannelSettings(Channel).Volume
-  UpdatedVolume = UpdatedVolume / &H3F01
-  UpdatedVolume = LOG(UpdatedVolume)
-  UpdatedVolume = UpdatedVolume * &H8
-  UpdatedVolume = UpdatedVolume + &H3F
-
+  UpdatedVolume = LOG(UpdatedVolume / MAXIMUM_VOLUME)
+  UpdatedVolume = UpdatedVolume / LOG(2)
+  UpdatedVolume = UpdatedVolume * DOUBLE_LINEAR_AMPLITUDE
+  UpdatedVolume = UpdatedVolume + ADLIB_VOLUME_RANGE
+ 
   OPLTouchReal ActiveChannel, CINT(UpdatedVolume)
  END IF
 END SUB
