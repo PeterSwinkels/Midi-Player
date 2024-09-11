@@ -150,6 +150,7 @@ DECLARE FUNCTION GetInvertedDeltaTicks (TicksPerQuarterNote AS INTEGER) AS DOUBL
 DECLARE FUNCTION GetOctave (Hertz AS DOUBLE) AS INTEGER
 DECLARE FUNCTION GetShortestDelay (TrackCount AS LONG) AS LONG
 DECLARE FUNCTION IsRunningStatus (Byte AS INTEGER) AS INTEGER
+DECLARE FUNCTION Log2 (Value AS DOUBLE) AS DOUBLE
 DECLARE FUNCTION ParseBEDWord (Buffer AS STRING) AS LONG
 DECLARE FUNCTION ParseBEWord (Buffer AS STRING) AS INTEGER
 DECLARE FUNCTION ReadInteger (MIDI AS MIDIStr) AS INTEGER
@@ -419,7 +420,7 @@ DIM HighestScore AS DOUBLE
 DIM Score AS DOUBLE
 
  AllocatedChannel = NO_CHANNEL
- HighestScore = &H80000000
+ HighestScore = -1
  Score = &H0
  FOR CandidateChannel = LBOUND(Channels) TO UBOUND(Channels)
   IF Channels(CandidateChannel).IsOn THEN
@@ -432,13 +433,13 @@ DIM Score AS DOUBLE
   ELSE
    Score = (Score + Channels(CandidateChannel).Age) + &HBB8
   END IF
-
+ 
   IF Score > HighestScore THEN
    HighestScore = Score
    AllocatedChannel = CandidateChannel
   END IF
  NEXT CandidateChannel
-
+ 
  AllocateChannel = AllocatedChannel
 END FUNCTION
 
@@ -566,8 +567,8 @@ FUNCTION GetOctave (Hertz AS DOUBLE) AS INTEGER
 DIM Octave AS INTEGER
 
  Octave = 0
- DO WHILE Hertz >= 1023.5
-  Hertz = Hertz / 2
+ DO UNTIL Hertz <= 1024
+  Hertz = Hertz \ 2
   Octave = Octave + 1024
  LOOP
 
@@ -702,6 +703,10 @@ END SUB
 
 FUNCTION IsRunningStatus (Byte AS INTEGER) AS INTEGER
  IsRunningStatus = ((Byte AND ME_FIRST) = &H0)
+END FUNCTION
+
+FUNCTION Log2 (Value AS DOUBLE) AS DOUBLE
+ Log2 = LOG(Value) / LOG(2)
 END FUNCTION
 
 SUB Main (MIDI AS MIDIStr, Status AS StatusStr)
@@ -1197,8 +1202,7 @@ DIM UpdatedVolume AS DOUBLE
   OPLTouchReal ActiveChannel, &H0
  ELSE
   UpdatedVolume = Volume * ChannelSettings(Channel).Volume
-  UpdatedVolume = LOG(UpdatedVolume / MAXIMUM_VOLUME)
-  UpdatedVolume = UpdatedVolume / LOG(2)
+  UpdatedVolume = Log2(UpdatedVolume / MAXIMUM_VOLUME)
   UpdatedVolume = UpdatedVolume * DOUBLE_LINEAR_AMPLITUDE
   UpdatedVolume = UpdatedVolume + ADLIB_VOLUME_RANGE
  
