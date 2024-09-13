@@ -131,6 +131,7 @@ END TYPE
 
 TYPE StatusStr
  Began AS INTEGER
+ EndOfMIDI AS INTEGER
  LoopEnd AS INTEGER
  LoopStart AS INTEGER
  LoopWait AS LONG
@@ -145,6 +146,7 @@ TYPE TrackStr
 END TYPE
 
 DECLARE FUNCTION AllocateChannel (Instrument AS INTEGER) AS INTEGER
+DECLARE FUNCTION GetFileName (Path AS STRING) AS STRING
 DECLARE FUNCTION GetHertz (Note AS INTEGER, Bend AS DOUBLE) AS DOUBLE
 DECLARE FUNCTION GetInvertedDeltaTicks (TicksPerQuarterNote AS INTEGER) AS DOUBLE
 DECLARE FUNCTION GetOctave (Hertz AS DOUBLE) AS INTEGER
@@ -161,7 +163,7 @@ DECLARE SUB ChangePanning (Channel AS INTEGER, Panning AS INTEGER)
 DECLARE SUB ControllerChange (Channel AS INTEGER, MIDI AS MIDIStr)
 DECLARE SUB DeallocateActiveNote (Channel AS INTEGER, Note AS INTEGER)
 DECLARE SUB Display (Row AS INTEGER, Column AS INTEGER, ColorV AS INTEGER, Text AS STRING)
-DECLARE SUB DisplayKeys ()
+DECLARE SUB DisplayInformationBar ()
 DECLARE SUB DisplayNote (AllocatedChannel AS INTEGER, Note AS INTEGER)
 DECLARE SUB GetInstrumentData ()
 DECLARE SUB HandleSpecialTrackEvent (MIDISpecialEvent AS INTEGER, Track, MIDI AS MIDIStr, Status AS StatusStr)
@@ -172,7 +174,7 @@ DECLARE SUB Main (MIDI AS MIDIStr, Status AS StatusStr)
 DECLARE SUB NoteOff (Channel AS INTEGER, MIDI AS MIDIStr)
 DECLARE SUB NoteOn (Channel AS INTEGER, Status AS StatusStr, MIDI AS MIDIStr)
 DECLARE SUB NoteTouch (Channel AS INTEGER, MIDI AS MIDIStr)
-DECLARE SUB OpenMIDI (FileName AS STRING, MIDI AS MIDIStr)
+DECLARE SUB OpenMIDI (MIDIPath AS STRING, MIDI AS MIDIStr)
 DECLARE SUB OPLNoteOff (Channel AS INTEGER)
 DECLARE SUB OPLNoteOn (Channel AS INTEGER, Hertz AS DOUBLE)
 DECLARE SUB OPLPatch (Channel AS INTEGER)
@@ -198,6 +200,7 @@ DIM SHARED ActiveNotes(0 TO 15, 0 TO 127) AS ActiveNoteStr
 DIM SHARED Channels(0 TO 17) AS ChannelStr
 DIM SHARED ChannelInstruments(0 TO 17) AS ChannelInstrumentStr
 DIM SHARED ChannelSettings(0 TO 15) AS ChannelSettingsStr
+DIM SHARED MIDIPath AS STRING
 DIM SHARED Instruments(0 TO 180, 0 TO 6) AS INTEGER
 DIM SHARED Loops(0 TO 0) AS TrackStr
 DIM SHARED LoopsBackup(0 TO 0) AS TrackStr
@@ -515,8 +518,8 @@ SUB Display (Row AS INTEGER, Column AS INTEGER, ColorV AS INTEGER, Text AS STRIN
  PRINT Text;
 END SUB
 
-SUB DisplayKeys ()
- Display 1, 1, 15, "Press Q to quit"
+SUB DisplayInformationBar ()
+ Display 1, 1, 15, "Press Q to quit. - Playing: " + GetFileName(MIDIPath)
 END SUB
 
 SUB DisplayNote (AllocatedChannel AS INTEGER, Note AS INTEGER)
@@ -531,6 +534,25 @@ DIM y AS INTEGER
  Channels(AllocatedChannel).XColor = SCREEN(y, x, TRUE)
  Display y, x, Channels(AllocatedChannel).ColorV, "#"
 END SUB
+
+FUNCTION GetFileName (Path AS STRING) AS STRING
+DIM FileName AS STRING
+DIM NextPosition AS INTEGER
+DIM Position AS INTEGER
+
+ Position = INSTR(Path, "\")
+
+ DO WHILE Position > 0
+  NextPosition = INSTR(Position + 1, Path, "\")
+  IF NextPosition <= 0 THEN EXIT DO
+  Position = NextPosition
+ LOOP
+
+ FileName = Path
+ IF Position > 0 THEN FileName = MID$(FileName, Position + 1)
+
+ GetFileName = FileName
+END FUNCTION
 
 FUNCTION GetHertz (Note AS INTEGER, Bend AS DOUBLE) AS DOUBLE
 DIM NoteBend AS DOUBLE
@@ -621,8 +643,8 @@ DIM StringV AS STRING
     Status.LoopEnd = TRUE
    END IF
   CASE MME_END_OF_TRACK
+   Status.EndOfMIDI = (LOC(MIDI.FileH) = LOF(MIDI.FileH))
    Tracks(Track).Status = -1
-   Status.LoopEnd = TRUE
   CASE MME_SET_TEMPO
    MIDI.Tempo = ParseBEDWord(CHR$(&H0) + StringV) * MIDI.InvertedDeltaTicks
   CASE MMET_COPYRIGHT, MMET_GENERIC, MMET_INSTRUMENT, MMET_LYRIC, MMET_MARKER, MMET_TRACK
@@ -690,6 +712,7 @@ DIM Channel AS INTEGER
  NEXT Channel
 
  Status.Began = FALSE
+ Status.EndOfMIDI = FALSE
  Status.LoopEnd = FALSE
  Status.LoopStart = TRUE
  Status.LoopWait = 0
@@ -706,22 +729,29 @@ FUNCTION IsRunningStatus (Byte AS INTEGER) AS INTEGER
 END FUNCTION
 
 FUNCTION Log2 (Value AS DOUBLE) AS DOUBLE
- Log2 = LOG(Value) / LOG(2)
+DIM Log2V AS DOUBLE
+ 
+ IF Value = 0 THEN
+  Log2V = 0
+ ELSE
+  Log2V = LOG(Value) / LOG(2)
+ END IF
+
+ Log2 = Log2V
 END FUNCTION
 
 SUB Main (MIDI AS MIDIStr, Status AS StatusStr)
-DIM FileName AS STRING
 DIM KeyStroke AS STRING
 
- FileName = COMMAND$
+ MIDIPath = COMMAND$
 
- IF FileName = "" THEN
+ IF MIDIPath = "" THEN
   Display 1, 1, 15, "No file specified."
  ELSE
-  OpenMIDI FileName, MIDI
+  OpenMIDI MIDIPath, MIDI
   PLAY "T255 P64 P64"
 
-  DisplayKeys
+  DisplayInformationBar
 
   DO
    KeyStroke = INKEY$
@@ -822,19 +852,19 @@ DIM Volume AS INTEGER
  END IF
 END SUB
 
-SUB OpenMIDI (FileName AS STRING, MIDI AS MIDIStr)
+SUB OpenMIDI (MIDIPath AS STRING, MIDI AS MIDIStr)
 DIM FileH AS INTEGER
 DIM TicksPerQuarterNote AS INTEGER
 DIM Track AS INTEGER
 DIM TrackDelayPosition AS LONG
 DIM TrackLength AS LONG
 
- IF DIR$(FileName) = "" THEN
+ IF DIR$(MIDIPath) = "" THEN
   MIDI.FileH = 0
   ERROR 53
  ELSE
   MIDI.FileH = FREEFILE
-  OPEN FileName FOR BINARY LOCK READ WRITE AS #MIDI.FileH
+  OPEN MIDIPath FOR BINARY LOCK READ WRITE AS #MIDI.FileH
    IF INPUT$(&H4, MIDI.FileH) = "MThd" THEN
     IF ParseBEDWord(INPUT$(&H4, MIDI.FileH)) = MTHD_BLOCK_DEFAULT_LENGTH THEN
      MIDI.Format = ParseBEWord(INPUT$(&H2, MIDI.FileH))
@@ -1033,17 +1063,20 @@ DIM Track AS INTEGER
 
   IF Tracks(Track).Status >= 0 AND Tracks(Track).Delay <= 0 THEN
    HandleTrackEvent Track, MIDI, Status
-   IF Status.LoopEnd THEN
-
-    ReturnToLoopStart MIDI, Status
-
-    COLOR , 0
-    CLS
-    Status.TextRow = 2
-    DisplayKeys
+   IF Status.EndOfMIDI THEN
+    Quit MIDI
    ELSE
-    Tracks(Track).Delay = Tracks(Track).Delay + ReadVariableLengthInteger(MIDI)
-    Tracks(Track).Pointer = LOC(MIDI.FileH)
+    IF Status.LoopEnd THEN
+     ReturnToLoopStart MIDI, Status
+
+     COLOR , 0
+     CLS
+     Status.TextRow = 2
+     DisplayInformationBar
+    ELSE
+     Tracks(Track).Delay = Tracks(Track).Delay + ReadVariableLengthInteger(MIDI)
+     Tracks(Track).Pointer = LOC(MIDI.FileH)
+    END IF
    END IF
   END IF
  NEXT Track
@@ -1062,6 +1095,7 @@ SUB Quit (MIDI AS MIDIStr)
  OPLSilence
  CLOSE #MIDI.FileH
  COLOR 7, 0
+ END
 END SUB
 
 FUNCTION ReadInteger (MIDI AS MIDIStr) AS INTEGER
