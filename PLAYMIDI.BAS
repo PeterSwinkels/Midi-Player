@@ -77,6 +77,7 @@ CONST PC_SAMPLE_RATE = 44100
 CONST AMIGA_PC_SAMPLING_RATIO# = AMIGA_SAMPLE_RATE / PC_SAMPLE_RATE
 CONST PERCUSSION_ONLY = &H9
 CONST PERCUSSIVE_NOTES = &H6
+CONST PERCUSSIVE_FLAG = &H80
 CONST SCREAM_TRACKER_3_NOTE_B = 907
 CONST SIGN_14BIT = &H2000
 CONST TRUE = -1
@@ -151,6 +152,7 @@ DECLARE FUNCTION GetHertz (Note AS INTEGER, Bend AS DOUBLE) AS DOUBLE
 DECLARE FUNCTION GetInvertedDeltaTicks (TicksPerQuarterNote AS INTEGER) AS DOUBLE
 DECLARE FUNCTION GetOctave (Hertz AS DOUBLE) AS INTEGER
 DECLARE FUNCTION GetShortestDelay (TrackCount AS LONG) AS LONG
+DECLARE FUNCTION IsPercussive (Instrument AS INTEGER) AS INTEGER
 DECLARE FUNCTION IsRunningStatus (Byte AS INTEGER) AS INTEGER
 DECLARE FUNCTION Log2 (Value AS DOUBLE) AS DOUBLE
 DECLARE FUNCTION ParseBEDWord (Buffer AS STRING) AS LONG
@@ -430,8 +432,10 @@ DIM Score AS DOUBLE
    Score = &H0
    IF ChannelInstruments(CandidateChannel).Instrument = Instrument THEN
     Score = Score + .2
-   ELSEIF Instrument < &H80 AND ChannelInstruments(CandidateChannel).Instrument > &H7F THEN
-    Score = (Score * &H2) + &H9
+   ELSEIF NOT IsPercussive(Instrument) THEN
+    IF IsPercussive(ChannelInstruments(CandidateChannel).Instrument) THEN
+     Score = (Score * &H2) + &H9
+    END IF
    END IF
   ELSE
    Score = (Score + Channels(CandidateChannel).Age) + &HBB8
@@ -723,6 +727,10 @@ DIM Channel AS INTEGER
  ON PLAY(EVENT_BUFFER_SIZE) GOSUB PlayerLoop
  PLAY "ML MB T255"
 END SUB
+
+FUNCTION IsPercussive (Instrument AS INTEGER) AS INTEGER
+ IsPercussive = ((Instrument AND PERCUSSIVE_FLAG) = PERCUSSIVE_FLAG)
+END FUNCTION
 
 FUNCTION IsRunningStatus (Byte AS INTEGER) AS INTEGER
  IsRunningStatus = ((Byte AND ME_FIRST) = &H0)
